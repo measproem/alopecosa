@@ -42,7 +42,7 @@ impl Response {
     }
 
     body.shrink_to_fit();
-
+    //print!("header:{:#?}", header);
     Ok(Response { header, body: Some(body) })
   }
 
@@ -51,7 +51,26 @@ impl Response {
     where B: BodyDecoder,
   {
     match &self.body {
-      Some(body) => B::unpack(body),
+      Some(body) => {
+        //print!("body:{:?}", &self.body); 
+        B::unpack(body)
+      },
+      None => Err(io::Error::new(
+        io::ErrorKind::InvalidInput,
+        "body is empty",
+      ).into()),
+    }
+  }
+
+  /// allows you to parse response body.
+  pub fn unpack_body_from_execute_select<B>(&self) -> Result<B::Result, Error>
+    where B: BodyDecoder,
+  {
+    match &self.body {
+      Some(body) => {
+        //print!("body:{:?}", body); 
+        B::unpack(body)
+      },
       None => Err(io::Error::new(
         io::ErrorKind::InvalidInput,
         "body is empty",
@@ -219,10 +238,11 @@ impl<T> BodyDecoder for TupleBody<T>
   type Result = T;
 
   fn unpack(body: &[u8]) -> Result<T, Error> {
+    
     let mut cur = Cursor::new(body);
-
+    
     let map_len = read_map_len(&mut cur)?;
-
+    //println!("map_len: {:#?}",map_len );
     if map_len != 1 {
       return Err(io::Error::new(
         io::ErrorKind::Other, "expected 1 field",
@@ -232,7 +252,8 @@ impl<T> BodyDecoder for TupleBody<T>
     let raw_field: u64 = read_int(&mut cur)?;
     let field: Field = FromPrimitive::from_u64(raw_field)
       .ok_or(Error::UnexpectedField(raw_field))?;
-
+     //println!("field:{:?} ", cur);
+    
     match field {
       Field::Data =>
         rmp_serde::decode::from_read::<_, T>(cur)
@@ -240,6 +261,65 @@ impl<T> BodyDecoder for TupleBody<T>
       _ => Err(Error::UnexpectedField(raw_field)),
     }
   }
+}
+
+/// This is default decoder for response body from Execute Select SQL.
+pub struct TupleBodySelect<T>(PhantomData<T>)
+  where T: DeserializeOwned;
+
+impl<T> BodyDecoder for TupleBodySelect<T>
+  where T: DeserializeOwned
+{
+  type Result = T;
+
+  fn unpack(body: &[u8]) -> Result<T, Error> {
+    let mut cur = Cursor::new(body);
+    let cur = &mut cur;
+    
+
+    let map_len = read_map_len(cur)?;
+    //println!("Map length: {:#?}", map_len);
+
+    if map_len != 2 {
+        return Err(io::Error::new(
+            io::ErrorKind::Other, "expected 2 fields",
+        ).into());
+    }
+
+    let mut field_data: Option<T> = None;
+
+    for _ in 0..map_len {
+      //println!("Iterate: {:#?}", ln);
+      //print!("cur: {:?}", cur);
+      //println!("Map length: {:#?}", map_len);
+      let raw_field: u64 = read_int(cur)?;
+      //println!("Raw field value: {:#?}", raw_field);
+      
+      let field: Field = FromPrimitive::from_u64(raw_field)
+          .ok_or(Error::UnexpectedField(raw_field))?;
+      
+      match field {
+          Field::Data => {
+                //let value = read_value(cur)?;
+                //println!("Field: {:#?}", field);
+                field_data = Some(rmp_serde::decode::from_read::<_, T>(cur.by_ref())
+                  .map_err(Error::ParseError)?);
+          }
+          _ => {
+            #[warn(unused_must_use)]
+            read_value(cur)?; //This require move cur to next position
+          }
+      }
+      //println!("Cursor position after iteration: {:#?}", cur.position());
+  }
+
+    match field_data {
+        Some(data) => Ok(data),
+        None => Err(Error::UnexpectedField(0)),
+    }
+}
+
+
 }
 
 /// This is representation of SQL response body.
@@ -259,17 +339,25 @@ impl BodyDecoder for SQLBodyDecoder {
     let mut body = HashMap::new();
 
     let map_len = read_map_len(reader)?;
-
+    
     for _ in 0..map_len {
       let raw_field: u64 = read_int(reader)?;
       let field: Field = FromPrimitive::from_u64(raw_field)
         .ok_or(Error::UnexpectedField(raw_field))?;
 
-      let value = read_value(reader)?;
+        // println!("sql_test reader: {:#?} ", reader);
+        // println!("sql_test raw_field: {:#?} ", raw_field);
+        // println!("sql_test field: {:#?} ", field);
+        // println!("sql_test read_value: {:#?} ", field);
+        // let test =  rmp_serde::decode::from_read::<_, Decimal>(reader.clone())
+        //         .map_err(Error::ParseError);
+        //       println!("sql_test cur: {:#?}", test);
 
+      let value = read_value(reader)?;
+     
       body.insert(field, value);
     }
-
+    
     Ok(body)
   }
 }
