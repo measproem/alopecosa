@@ -17,7 +17,7 @@ use crate::iproto::{
   response::{
     ErrorBody, Response,
     SQLBody, SQLBodyDecoder,
-    TupleBody,
+    TupleBody, TupleBodySelect
   },
   types::Error,
 };
@@ -31,7 +31,7 @@ macro_rules! request_method {
       let req = request::$func(body);
 
       let resp: Response = self.perform(req).await?;
-
+      //print!("resp request_method: {:#?}",resp );
       resp.unpack_body::<TupleBody<T>>()
     }
   };
@@ -49,6 +49,22 @@ macro_rules! request_sql_method {
     }
   };
 }
+
+macro_rules! request_sqlselect_method {
+  ($func:ident, $body:ident) => {
+    #[allow(dead_code)]
+    pub async fn $func<T>(&self, body: $body) -> Result<T, Error>
+      where T: DeserializeOwned
+    {
+      let req = request::$func(body);
+
+      let resp: Response = self.perform(req).await?;
+      //print!("resp: {:#?}",resp.body );
+      resp.unpack_body_from_execute_select::<TupleBodySelect<T>>()
+    }
+  };
+}
+
 
 pub(crate) type RespChans = Arc<DashMap<u64, oneshot::Sender<Response>>>;
 
@@ -134,8 +150,10 @@ impl Connection {
   request_method!(delete, Delete);
   request_method!(eval, Eval);
 
+
   request_sql_method!(prepare, Prepare);
   request_sql_method!(execute, Execute);
+  request_sqlselect_method!(execute_select, Execute);
 
   pub async fn upsert(&self, body: Upsert) -> Result<(), Error> {
     let req = request::upsert(body);
@@ -202,7 +220,7 @@ mod tests {
   use crate::{Connector, IntoTuple, Value, iproto::{
     constants::{Field, Iterator},
     request::{
-      Call, Delete, Eval, Execute,
+      Call, Delete, Eval, Execute, ExecuteSelect,
       Insert, Prepare, Replace, Select,
       Update, Upsert,
     }
