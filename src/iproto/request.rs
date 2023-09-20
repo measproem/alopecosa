@@ -1,8 +1,9 @@
 /*!
   This module contains structs for requests.
 */
-
-use std::io::Write;
+use uuid::Uuid;
+use chrono::NaiveDateTime;
+use std::{io::Write, convert::TryInto};
 
 use super::{
   constants::{Field, RequestType, Iterator},
@@ -11,8 +12,11 @@ use super::{
 use num_traits::ToPrimitive;
 use rmp::encode::{
   write_array_len, write_map_len, write_sint,
-  write_str, write_str_len, write_uint,
+  write_str, write_str_len, write_uint, write_ext_meta
 };
+use byteorder::{LittleEndian, WriteBytesExt};
+use rust_decimal::Decimal;
+
 
 macro_rules! req_func {
   ( $func:ident, $body:ident ) => {
@@ -34,6 +38,7 @@ req_func!(eval, Eval);
 req_func!(upsert, Upsert);
 req_func!(prepare, Prepare);
 req_func!(execute, Execute);
+req_func!(execute_select, Execute);
 
 #[allow(dead_code)]
 pub fn ping() -> Request {
@@ -135,6 +140,9 @@ pub enum Value {
   Bool(bool), Null,
   Str(String), Bin(Vec<u8>),
   Array(Vec<Value>),
+  Uuid(Uuid), 
+  DateTime(NaiveDateTime),Decimal(Decimal)
+  
 }
 
 macro_rules! impl_value_from_as {
@@ -160,6 +168,27 @@ impl_value_from_as!(Int, i8, i64);
 
 impl_value_from_as!(F32, f32, f32);
 impl_value_from_as!(F64, f64, f64);
+
+// impl_value_from_as!(Uuids, Uuid, Uuid);
+// impl_value_from_as!(NaiveDateTimes, NaiveDateTime, NaiveDateTime);
+
+impl From<Uuid> for Value {
+  fn from(value: Uuid) -> Self {
+    Value::Uuid(value)
+  }
+}
+
+impl From<NaiveDateTime> for Value {
+  fn from(value: NaiveDateTime) -> Self {
+    Value::DateTime(value)
+  }
+}
+impl From<Decimal> for Value {
+  fn from(value: Decimal) -> Self {
+    Value::Decimal(value)
+  }
+}
+
 
 impl From<bool> for Value {
   fn from(value: bool) -> Self {
@@ -455,6 +484,623 @@ impl<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10> IntoTuple for (T1, T2, T3, T4, T5,
   }
 }
 
+impl<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11> IntoTuple for (T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11)
+  where
+    T1: Into<Value>,
+    T2: Into<Value>,
+    T3: Into<Value>,
+    T4: Into<Value>,
+    T5: Into<Value>,
+    T6: Into<Value>,
+    T7: Into<Value>,
+    T8: Into<Value>,
+    T9: Into<Value>,
+    T10: Into<Value>,
+    T11: Into<Value>,
+{
+  fn into_tuple(self) -> Vec<Value> {
+    vec![
+      self.0.into(),
+      self.1.into(),
+      self.2.into(),
+      self.3.into(),
+      self.4.into(),
+      self.5.into(),
+      self.6.into(),
+      self.7.into(),
+      self.8.into(),
+      self.9.into(),
+      self.10.into(),
+    ]
+  }
+}
+
+impl<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12> IntoTuple for (T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12)
+  where
+    T1: Into<Value>,
+    T2: Into<Value>,
+    T3: Into<Value>,
+    T4: Into<Value>,
+    T5: Into<Value>,
+    T6: Into<Value>,
+    T7: Into<Value>,
+    T8: Into<Value>,
+    T9: Into<Value>,
+    T10: Into<Value>,
+    T11: Into<Value>,
+    T12: Into<Value>,
+{
+  fn into_tuple(self) -> Vec<Value> {
+    vec![
+      self.0.into(),
+      self.1.into(),
+      self.2.into(),
+      self.3.into(),
+      self.4.into(),
+      self.5.into(),
+      self.6.into(),
+      self.7.into(),
+      self.8.into(),
+      self.9.into(),
+      self.10.into(),
+      self.11.into(),
+    ]
+  }
+}
+
+impl<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13> IntoTuple for (T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13)
+  where
+    T1: Into<Value>,
+    T2: Into<Value>,
+    T3: Into<Value>,
+    T4: Into<Value>,
+    T5: Into<Value>,
+    T6: Into<Value>,
+    T7: Into<Value>,
+    T8: Into<Value>,
+    T9: Into<Value>,
+    T10: Into<Value>,
+    T11: Into<Value>,
+    T12: Into<Value>,
+    T13: Into<Value>,
+{
+  fn into_tuple(self) -> Vec<Value> {
+    vec![
+      self.0.into(),
+      self.1.into(),
+      self.2.into(),
+      self.3.into(),
+      self.4.into(),
+      self.5.into(),
+      self.6.into(),
+      self.7.into(),
+      self.8.into(),
+      self.9.into(),
+      self.10.into(),
+      self.11.into(),
+      self.12.into(),
+    ]
+  }
+}
+
+impl<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14> IntoTuple for (T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14)
+  where
+    T1: Into<Value>,
+    T2: Into<Value>,
+    T3: Into<Value>,
+    T4: Into<Value>,
+    T5: Into<Value>,
+    T6: Into<Value>,
+    T7: Into<Value>,
+    T8: Into<Value>,
+    T9: Into<Value>,
+    T10: Into<Value>,
+    T11: Into<Value>,
+    T12: Into<Value>,
+    T13: Into<Value>,
+    T14: Into<Value>,
+{
+  fn into_tuple(self) -> Vec<Value> {
+    vec![
+      self.0.into(),
+      self.1.into(),
+      self.2.into(),
+      self.3.into(),
+      self.4.into(),
+      self.5.into(),
+      self.6.into(),
+      self.7.into(),
+      self.8.into(),
+      self.9.into(),
+      self.10.into(),
+      self.11.into(),
+      self.12.into(),
+      self.13.into(),
+    ]
+  }
+}
+
+impl<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15> IntoTuple for (T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15)
+  where
+    T1: Into<Value>,
+    T2: Into<Value>,
+    T3: Into<Value>,
+    T4: Into<Value>,
+    T5: Into<Value>,
+    T6: Into<Value>,
+    T7: Into<Value>,
+    T8: Into<Value>,
+    T9: Into<Value>,
+    T10: Into<Value>,
+    T11: Into<Value>,
+    T12: Into<Value>,
+    T13: Into<Value>,
+    T14: Into<Value>,
+    T15: Into<Value>,
+{
+  fn into_tuple(self) -> Vec<Value> {
+    vec![
+      self.0.into(),
+      self.1.into(),
+      self.2.into(),
+      self.3.into(),
+      self.4.into(),
+      self.5.into(),
+      self.6.into(),
+      self.7.into(),
+      self.8.into(),
+      self.9.into(),
+      self.10.into(),
+      self.11.into(),
+      self.12.into(),
+      self.13.into(),
+      self.14.into(),
+    ]
+  }
+}
+
+impl<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16> IntoTuple for (T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16)
+  where
+    T1: Into<Value>,
+    T2: Into<Value>,
+    T3: Into<Value>,
+    T4: Into<Value>,
+    T5: Into<Value>,
+    T6: Into<Value>,
+    T7: Into<Value>,
+    T8: Into<Value>,
+    T9: Into<Value>,
+    T10: Into<Value>,
+    T11: Into<Value>,
+    T12: Into<Value>,
+    T13: Into<Value>,
+    T14: Into<Value>,
+    T15: Into<Value>,
+    T16: Into<Value>,
+{
+  fn into_tuple(self) -> Vec<Value> {
+    vec![
+      self.0.into(),
+      self.1.into(),
+      self.2.into(),
+      self.3.into(),
+      self.4.into(),
+      self.5.into(),
+      self.6.into(),
+      self.7.into(),
+      self.8.into(),
+      self.9.into(),
+      self.10.into(),
+      self.11.into(),
+      self.12.into(),
+      self.13.into(),
+      self.14.into(),
+      self.15.into(),
+    ]
+  }
+}
+
+impl<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17> IntoTuple for (T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17)
+  where
+    T1: Into<Value>,
+    T2: Into<Value>,
+    T3: Into<Value>,
+    T4: Into<Value>,
+    T5: Into<Value>,
+    T6: Into<Value>,
+    T7: Into<Value>,
+    T8: Into<Value>,
+    T9: Into<Value>,
+    T10: Into<Value>,
+    T11: Into<Value>,
+    T12: Into<Value>,
+    T13: Into<Value>,
+    T14: Into<Value>,
+    T15: Into<Value>,
+    T16: Into<Value>,
+    T17: Into<Value>,
+{
+  fn into_tuple(self) -> Vec<Value> {
+    vec![
+      self.0.into(),
+      self.1.into(),
+      self.2.into(),
+      self.3.into(),
+      self.4.into(),
+      self.5.into(),
+      self.6.into(),
+      self.7.into(),
+      self.8.into(),
+      self.9.into(),
+      self.10.into(),
+      self.11.into(),
+      self.12.into(),
+      self.13.into(),
+      self.14.into(),
+      self.15.into(),
+      self.16.into(),
+    ]
+  }
+}
+
+impl<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18> IntoTuple for (T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18)
+  where
+    T1: Into<Value>,
+    T2: Into<Value>,
+    T3: Into<Value>,
+    T4: Into<Value>,
+    T5: Into<Value>,
+    T6: Into<Value>,
+    T7: Into<Value>,
+    T8: Into<Value>,
+    T9: Into<Value>,
+    T10: Into<Value>,
+    T11: Into<Value>,
+    T12: Into<Value>,
+    T13: Into<Value>,
+    T14: Into<Value>,
+    T15: Into<Value>,
+    T16: Into<Value>,
+    T17: Into<Value>,
+    T18: Into<Value>,
+{
+  fn into_tuple(self) -> Vec<Value> {
+    vec![
+      self.0.into(),
+      self.1.into(),
+      self.2.into(),
+      self.3.into(),
+      self.4.into(),
+      self.5.into(),
+      self.6.into(),
+      self.7.into(),
+      self.8.into(),
+      self.9.into(),
+      self.10.into(),
+      self.11.into(),
+      self.12.into(),
+      self.13.into(),
+      self.14.into(),
+      self.15.into(),
+      self.16.into(),
+      self.17.into(),
+    ]
+  }
+}
+
+impl<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19> IntoTuple for (T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19)
+  where
+    T1: Into<Value>,
+    T2: Into<Value>,
+    T3: Into<Value>,
+    T4: Into<Value>,
+    T5: Into<Value>,
+    T6: Into<Value>,
+    T7: Into<Value>,
+    T8: Into<Value>,
+    T9: Into<Value>,
+    T10: Into<Value>,
+    T11: Into<Value>,
+    T12: Into<Value>,
+    T13: Into<Value>,
+    T14: Into<Value>,
+    T15: Into<Value>,
+    T16: Into<Value>,
+    T17: Into<Value>,
+    T18: Into<Value>,
+    T19: Into<Value>,
+{
+  fn into_tuple(self) -> Vec<Value> {
+    vec![
+      self.0.into(),
+      self.1.into(),
+      self.2.into(),
+      self.3.into(),
+      self.4.into(),
+      self.5.into(),
+      self.6.into(),
+      self.7.into(),
+      self.8.into(),
+      self.9.into(),
+      self.10.into(),
+      self.11.into(),
+      self.12.into(),
+      self.13.into(),
+      self.14.into(),
+      self.15.into(),
+      self.16.into(),
+      self.17.into(),
+      self.18.into(),
+    ]
+  }
+}
+
+impl<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20> IntoTuple for (T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20)
+  where
+    T1: Into<Value>,
+    T2: Into<Value>,
+    T3: Into<Value>,
+    T4: Into<Value>,
+    T5: Into<Value>,
+    T6: Into<Value>,
+    T7: Into<Value>,
+    T8: Into<Value>,
+    T9: Into<Value>,
+    T10: Into<Value>,
+    T11: Into<Value>,
+    T12: Into<Value>,
+    T13: Into<Value>,
+    T14: Into<Value>,
+    T15: Into<Value>,
+    T16: Into<Value>,
+    T17: Into<Value>,
+    T18: Into<Value>,
+    T19: Into<Value>,
+    T20: Into<Value>,
+{
+  fn into_tuple(self) -> Vec<Value> {
+    vec![
+      self.0.into(),
+      self.1.into(),
+      self.2.into(),
+      self.3.into(),
+      self.4.into(),
+      self.5.into(),
+      self.6.into(),
+      self.7.into(),
+      self.8.into(),
+      self.9.into(),
+      self.10.into(),
+      self.11.into(),
+      self.12.into(),
+      self.13.into(),
+      self.14.into(),
+      self.15.into(),
+      self.16.into(),
+      self.17.into(),
+      self.18.into(),
+      self.19.into(),
+    ]
+  }
+}
+
+impl<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21> IntoTuple for (T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21)
+  where
+    T1: Into<Value>,
+    T2: Into<Value>,
+    T3: Into<Value>,
+    T4: Into<Value>,
+    T5: Into<Value>,
+    T6: Into<Value>,
+    T7: Into<Value>,
+    T8: Into<Value>,
+    T9: Into<Value>,
+    T10: Into<Value>,
+    T11: Into<Value>,
+    T12: Into<Value>,
+    T13: Into<Value>,
+    T14: Into<Value>,
+    T15: Into<Value>,
+    T16: Into<Value>,
+    T17: Into<Value>,
+    T18: Into<Value>,
+    T19: Into<Value>,
+    T20: Into<Value>,
+    T21: Into<Value>,
+{
+  fn into_tuple(self) -> Vec<Value> {
+    vec![
+      self.0.into(),
+      self.1.into(),
+      self.2.into(),
+      self.3.into(),
+      self.4.into(),
+      self.5.into(),
+      self.6.into(),
+      self.7.into(),
+      self.8.into(),
+      self.9.into(),
+      self.10.into(),
+      self.11.into(),
+      self.12.into(),
+      self.13.into(),
+      self.14.into(),
+      self.15.into(),
+      self.16.into(),
+      self.17.into(),
+      self.18.into(),
+      self.19.into(),
+      self.20.into(),
+    ]
+  }
+}
+
+impl<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22> IntoTuple for (T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22)
+  where
+    T1: Into<Value>,
+    T2: Into<Value>,
+    T3: Into<Value>,
+    T4: Into<Value>,
+    T5: Into<Value>,
+    T6: Into<Value>,
+    T7: Into<Value>,
+    T8: Into<Value>,
+    T9: Into<Value>,
+    T10: Into<Value>,
+    T11: Into<Value>,
+    T12: Into<Value>,
+    T13: Into<Value>,
+    T14: Into<Value>,
+    T15: Into<Value>,
+    T16: Into<Value>,
+    T17: Into<Value>,
+    T18: Into<Value>,
+    T19: Into<Value>,
+    T20: Into<Value>,
+    T21: Into<Value>,
+    T22: Into<Value>,
+{
+  fn into_tuple(self) -> Vec<Value> {
+    vec![
+      self.0.into(),
+      self.1.into(),
+      self.2.into(),
+      self.3.into(),
+      self.4.into(),
+      self.5.into(),
+      self.6.into(),
+      self.7.into(),
+      self.8.into(),
+      self.9.into(),
+      self.10.into(),
+      self.11.into(),
+      self.12.into(),
+      self.13.into(),
+      self.14.into(),
+      self.15.into(),
+      self.16.into(),
+      self.17.into(),
+      self.18.into(),
+      self.19.into(),
+      self.20.into(),
+      self.21.into(),
+    ]
+  }
+}
+
+
+impl<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22, T23> IntoTuple for (T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22, T23)
+  where
+    T1: Into<Value>,
+    T2: Into<Value>,
+    T3: Into<Value>,
+    T4: Into<Value>,
+    T5: Into<Value>,
+    T6: Into<Value>,
+    T7: Into<Value>,
+    T8: Into<Value>,
+    T9: Into<Value>,
+    T10: Into<Value>,
+    T11: Into<Value>,
+    T12: Into<Value>,
+    T13: Into<Value>,
+    T14: Into<Value>,
+    T15: Into<Value>,
+    T16: Into<Value>,
+    T17: Into<Value>,
+    T18: Into<Value>,
+    T19: Into<Value>,
+    T20: Into<Value>,
+    T21: Into<Value>,
+    T22: Into<Value>,
+    T23: Into<Value>,
+{
+  fn into_tuple(self) -> Vec<Value> {
+    vec![
+      self.0.into(),
+      self.1.into(),
+      self.2.into(),
+      self.3.into(),
+      self.4.into(),
+      self.5.into(),
+      self.6.into(),
+      self.7.into(),
+      self.8.into(),
+      self.9.into(),
+      self.10.into(),
+      self.11.into(),
+      self.12.into(),
+      self.13.into(),
+      self.14.into(),
+      self.15.into(),
+      self.16.into(),
+      self.17.into(),
+      self.18.into(),
+      self.19.into(),
+      self.20.into(),
+      self.21.into(),
+      self.22.into(),
+    ]
+  }
+}
+
+impl<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22, T23, T24> IntoTuple for (T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22, T23, T24)
+  where
+    T1: Into<Value>,
+    T2: Into<Value>,
+    T3: Into<Value>,
+    T4: Into<Value>,
+    T5: Into<Value>,
+    T6: Into<Value>,
+    T7: Into<Value>,
+    T8: Into<Value>,
+    T9: Into<Value>,
+    T10: Into<Value>,
+    T11: Into<Value>,
+    T12: Into<Value>,
+    T13: Into<Value>,
+    T14: Into<Value>,
+    T15: Into<Value>,
+    T16: Into<Value>,
+    T17: Into<Value>,
+    T18: Into<Value>,
+    T19: Into<Value>,
+    T20: Into<Value>,
+    T21: Into<Value>,
+    T22: Into<Value>,
+    T23: Into<Value>,
+    T24: Into<Value>,
+{
+  fn into_tuple(self) -> Vec<Value> {
+    vec![
+      self.0.into(),
+      self.1.into(),
+      self.2.into(),
+      self.3.into(),
+      self.4.into(),
+      self.5.into(),
+      self.6.into(),
+      self.7.into(),
+      self.8.into(),
+      self.9.into(),
+      self.10.into(),
+      self.11.into(),
+      self.12.into(),
+      self.13.into(),
+      self.14.into(),
+      self.15.into(),
+      self.16.into(),
+      self.17.into(),
+      self.18.into(),
+      self.19.into(),
+      self.20.into(),
+      self.21.into(),
+      self.22.into(),
+      self.23.into(),
+    ]
+  }
+}
+
 impl Value {
   fn pack<W>(&self, w: &mut W) -> Result<(), Error>
     where W: Write,
@@ -472,11 +1118,138 @@ impl Value {
         rmp::encode::write_array_len(w, vals.len() as u32)?;
         for val in vals.iter() { val.pack(w)?; }
       },
+
+      // UUID
+      Value::Uuid(val) => {
+          // Write ext metadata with type 2 and size 16
+          //https://www.tarantool.io/en/doc/latest/dev_guide/internals/msgpack_extensions/#the-uuid-type
+          write_ext_meta(w, 16, 2)?;
+          // Write the bytes of the UUID
+          w.write_all(val.as_bytes())?;
+      },
+
+      // Decimal
+      Value::Decimal(val) => {
+        let mut buffer = Vec::new();
+        self.pack_decimal(&mut buffer, val)?;
+        w.write_all(&buffer).map_err(Error::from)?;
+        // Print the encoded bytes for debugging
+         //println!("Encoded Bytes: {:?}", buffer);
+    },
+      // DateTime
+      Value::DateTime(val) => {
+
+        // Get the number of seconds and nanoseconds since the UNIX epoch
+        let seconds = val.timestamp();
+        let nanoseconds = val.timestamp_subsec_nanos();
+        // Assuming no time zone offset or index
+        let tzoffset = 0;
+        let tzindex = 0;
+        // Write ext metadata with type 4 and size 16
+        // https://www.tarantool.io/en/doc/latest/dev_guide/internals/msgpack_extensions/#the-datetime-type
+        write_ext_meta(w, 16, 4)?;
+        // Write seconds as little-endian i64
+        w.write_i64::<LittleEndian>(seconds)?;
+        // Write nanoseconds as little-endian u32
+        w.write_u32::<LittleEndian>(nanoseconds)?;
+        // Write time zone offset as little-endian i16
+        w.write_i16::<LittleEndian>(tzoffset)?;
+        // Write time zone index as little-endian u16
+        w.write_u16::<LittleEndian>(tzindex)?;
+
+      },
+
+
+
     };
 
     Ok(())
   }
+  
+  fn pack_decimal<W>(&self, w: &mut W, decimal: &Decimal) -> Result<(), Error>
+  where
+      W: Write + AsRef<[u8]>,
+  {
+      // Let's assume you have the following testing data
+      //let decimal = Decimal::from_str("-12.0343").unwrap();
+      let scale = decimal.scale();
+      // let mantissa = decimal_str.parse::<i64>().unwrap();
+      let mantissa = decimal.mantissa();
+      let _decimal_len = mantissa.abs().to_string().len();
+      let decimal_str = mantissa.abs().to_string();
+
+      // Determine the sign of the decimal
+      let sign: u8 = if mantissa.is_negative()  {
+          0x0d // Negative sign (0x0d in BCD)
+      } else {
+          0x0c // Positive sign (0x0c in BCD)
+      };
+
+
+      let mut digits = Vec::new();
+      for c in decimal_str.chars() {
+          // Convert each character into a u8 value
+          let digit = c.to_digit(10).unwrap() as u8;
+          // Push the digit into the vector
+          digits.push(digit);
+      }
+
+      let len = digits.len();
+      // Check if the number of digits is odd
+      if len % 2 == 0 {
+          // Add a leading zero
+          digits.insert(0, 0 as u8);
+      }
+
+      // Calculate the number of bytes needed for the packed BCD representation
+      let num_bytes = (digits.len()+2) / 2;
+
+      // Create a vector to hold the packed BCD bytes
+      let mut bcd = vec![0u8; num_bytes];
+      // Keep track of the current index
+      let mut index = 0;
+
+      // Build Nibble Pair BCD[nibble(first,second), ..]
+      // Iterate over the digits in chunks of two
+      for chunk in digits.chunks(2) {
+        // Get the first and second digit from the chunk
+        let  first = chunk[0] << 4;
+        let  mut second  = 0;
+        if index != num_bytes-1 {
+            second = chunk[1] & 0x0f;
+        }else{//last index
+          second |= sign;
+        }
+    
+        // Shift the first digit left by 4 bits and combine it with the second digit
+        let byte= first | second;
+        //println!("byte[{:?}]: 0x{:02X}", index, byte);
+        // Assign the byte to the BCD vector at the current index
+        bcd[index] = byte;
+        // Increment the index
+        index += 1;
+      }
+
+      // Write the MessagePack representation
+      rmp::encode::write_ext_meta(w, (num_bytes+2).try_into().unwrap(), 1)?; // MP_EXT with type 1
+      rmp::encode::write_u8(w, scale as u8)?; // Scale as MP_UINT
+      w.write_all(&bcd)?; // PackedDecimal (BCD bytes)
+
+
+      //Keep for future debug Byte, Hex and BCD
+      // let rust_to_hex = hex::encode(w.as_ref());
+      // println!(
+      //     "Decimal: {}, rust_to_hex: {}, len: {:?}, bcd:{:?}, index: {:?}",
+      //     decimal_str, rust_to_hex, len, &bcd, index
+      // );
+
+      Ok(())
+  }
+  
+       
+
 }
+
 
 #[derive(Debug, Clone)]
 pub struct Select {
@@ -600,7 +1373,7 @@ impl Body for Insert {
 
     write_uint(buf, Field::Tuple.to_u64().unwrap())?;
     write_array_len(buf, self.tuple.len() as u32)?;
-    for v in self.tuple.iter() { v.pack(buf)?; }
+    for v in self.tuple.iter() {v.pack(buf)?; }
 
     Ok(data)
   }
@@ -831,6 +1604,42 @@ impl Body for Execute {
 
     write_uint(buf, Field::Options.to_u64().unwrap())?;
     write_array_len(buf, self.options.len() as u32)?;
+
+    for v in self.options.iter() { v.pack(buf)?; }
+
+    Ok(data)
+  }
+}
+
+
+
+#[derive(Debug, Clone)]
+pub struct ExecuteSelect {
+  pub expr: Prepare,
+  pub sql_bind: Vec<Value>,
+  pub options: Vec<Value>,
+}
+
+impl Body for ExecuteSelect {
+  fn pack(&self) -> Result<Vec<u8>, Error> {
+    let mut data: Vec<u8> = Vec::with_capacity(
+      1 + self.expr.pair_size_hint() +
+      (1 + 1 + 5 * self.sql_bind.len()) +
+      (1 + 1 + 5 * self.options.len())
+    );
+
+    let buf = &mut data;
+
+    write_map_len(buf, 3)?;
+
+    self.expr.pack_pair(buf)?;
+
+    write_uint(buf, Field::SqlBind.to_u64().unwrap())?;
+    write_array_len(buf, self.sql_bind.len() as u32)?;
+    for v in self.sql_bind.iter() { v.pack(buf)?; }
+
+    write_uint(buf, Field::Options.to_u64().unwrap())?;
+    write_array_len(buf, self.options.len() as u32)?;
     for v in self.options.iter() { v.pack(buf)?; }
 
     Ok(data)
@@ -906,3 +1715,4 @@ mod tests {
   }
 
 }
+	
