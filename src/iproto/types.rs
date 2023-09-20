@@ -1,6 +1,7 @@
 use std::{error, fmt::{Display, Debug}, io};
 use rmp::{decode::{NumValueReadError, ValueReadError}, encode::ValueWriteError};
 use crate::iproto::constants::Field;
+use serde_json::Error as SerdeJsonError;
 
 use super::{constants::Code, response::TarantoolError};
 
@@ -12,10 +13,17 @@ pub enum Error {
   UnexpectedField(u64),
   UnexpectedValue(Field),
   TarantoolError(Code, TarantoolError),
+  SerdeEncodeError(rmp_serde::encode::Error),
+  JsonError(SerdeJsonError),
 }
 
 impl error::Error for Error {}
 
+impl From<SerdeJsonError> for Error {
+  fn from(err: SerdeJsonError) -> Error {
+      Error::JsonError(err)
+  }
+}
 impl Display for Error {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     match self {
@@ -29,6 +37,8 @@ impl Display for Error {
         write!(f, "unexpected field {}", field),
       Self::TarantoolError(code, err) =>
         write!(f, "TarantoolError(code={:?}, err={:?})", code, err),
+      Self::SerdeEncodeError(err) => Display::fmt(err, f),
+      Self::JsonError(err) => Display::fmt(err, f),
     }
   }
 }
