@@ -292,7 +292,7 @@ pub enum RequestType {
   VoteDeprecated  = 0x43,
   Vote            = 0x44,
   FetchSnapshot   = 0x45,
-  Register        = 0x46,
+  Register        = 0x46
 }
 
 /**
